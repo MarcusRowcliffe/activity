@@ -1,0 +1,19 @@
+Package: activity
+Type: Package
+Title: Animal Activity Statistics
+Version: 1.2
+Author: Marcus Rowcliffe
+Maintainer: The package maintainer <marcus.rowcliffe@ioz.ac.uk>
+Description: Provides functions to fit kernel density functions
+    to animal activity time data; plot activity distributions;
+    quantify overall levels of activity; statistically compare
+    activity metrics through bootstrapping; and evaluate variation
+    in linear variables with time (or other circular variables).
+License: GPL-3
+Encoding: UTF-8
+Depends:
+    methods
+Imports:
+    circular,
+    pbapply,
+LazyData: true
