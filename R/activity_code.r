@@ -18,7 +18,6 @@
 #' (in the range 0 to 2*pi).
 #'
 #' @references Rowcliffe, M., Kays, R., Kranstauber, B., Carbone, C., Jansen, P.A. (2014) Quantifying animal activity level using camera trap data. Methods in Ecology and Evolution.
-#' @seealso \code{\link{overlap}}
 #' @docType package
 #' @name activity
 NULL
@@ -55,13 +54,12 @@ NULL
 #' @slot bw Object of class \code{"numeric"}, kernel bandwidth.
 #' @slot adj Object of class \code{"numeric"}, kernel bandwidth adjustment multiplier.
 #' @slot pdf Object of class \code{"matrix"} describing fitted probability density function:
-#'  Column 1: Sequence of radian times at which PDF evaluated (specifically seq(0,2*pi,pi/256)).
+#'  Column 1: A regular sequence of radian times at which PDF evaluated; range is [0, 2*pi] if unbounded, and sequence steps are range difference divided by 512.
 #'  Column 2: Corresponding circular kernel PDF values.
-#' Additionally if errors boostrapped:
+#' Additionally if errors bootstrapped:
 #'  Column 3: PDF standard error.
-#'  Column 4: PDF lower 95% confidence limit. Column 5: PDF upper 95% confidence limit.
+#'  Column 4: PDF lower 95\% confidence limit. Column 5: PDF upper 95\% confidence limit.
 #' @slot act Object of class \code{"numeric"} giving activity level estimate and, if errors boostrapped, standard error and 95 percent confidence limits.
-#' @method plot \code{signature(x = "actmod")}: Plots PDF, confidence interval if calculated, and optionally data distribution.
 #' @export
 setClass("actmod",
          representation(data="numeric", wt="numeric", bw="numeric", adj="numeric",
@@ -75,20 +73,10 @@ setClass("actmod",
 #'  \code{x}: A regular ascending sequence from 0 to 2*pi at which other columns evaluated;
 #'  \code{fit}: The linear fitted values;
 #'  \code{p}: The two tailed probability of observing the fitted values under a random (null) circular distribution;
-#'  \code{nullLCL}: The lower 95% confidence limit of the null distribution;
-#'  \code{nullUCL}: The upper 95% confidence limit of the null distribution.
-#' @method plot \code{signature(x = "actmod")}: Plots PDF, confidence interval if calculated, and optionally data distribution.
+#'  \code{nullLCL}: The lower 95\% confidence limit of the null distribution;
+#'  \code{nullUCL}: The upper 95\% confidence limit of the null distribution.
 #' @export
 setClass("lincircmod", representation(data="data.frame", fit="data.frame"))
-
-
-#' Show activity level estimate
-#'
-#' Prints the \code{act} slot (activity level estimate) from an \code{actmod} object.
-#'
-#' @param object Object of class \code{actmod}.
-#' @export
-setMethod("show", "actmod", function(object) print(object@act))
 
 
 #' Index of overlap between circular distributions.
@@ -107,8 +95,8 @@ setMethod("show", "actmod", function(object) print(object@act))
 #' ovl5(oceAct, broAct)
 #' @export
 ovl5 <- function(fit1, fit2){
-  f <- approxfun(fit1@pdf[,1], fit1@pdf[,2])
-  g <- approxfun(fit2@pdf[,1], fit2@pdf[,2])
+  f <- stats::approxfun(fit1@pdf[,1], fit1@pdf[,2])
+  g <- stats::approxfun(fit2@pdf[,1], fit2@pdf[,2])
   fx <- f(fit1@data)
   gx <- g(fit1@data)
   fy <- f(fit2@data)
@@ -138,7 +126,7 @@ bwcalc <- function(dat,K=3)
      (besselI(kap,k)/besselI(kap,0) - trigmom)^2
    }
    kapk.calc <- function(k,dat)
-     optimise(minfunc,c(0,100),k,dat)$minimum
+     stats::optimise(minfunc,c(0,100),k,dat)$minimum
    kap <- max(sapply(1:K, kapk.calc, dat))
    ((3*length(dat)*kap^2*besselI(2*kap,2)) / (4*pi^0.5*besselI(kap,0)^2))^(2/5)
 }
@@ -193,7 +181,7 @@ dvmkern <- function(x,dat,wt=NULL,bw=NULL,adj=1){
 #' data(BCItime)
 #' tm <- 2*pi*subset(BCItime, species=="paca")$time
 #' mod <- fitact(tm)
-#' rn <- redf(100, as.data.frame(mod@pdf))
+#' rn <- redf(1000, as.data.frame(mod@pdf))
 #' @export
 redf <- function(n, fit){
   if(sum(c("x","y") %in% names(fit)) != 2) stop("fit must be a dataframe with (at least) columns named x and y")
@@ -201,14 +189,14 @@ redf <- function(n, fit){
 
   df <- (fit$y[-1]+fit$y[-nrow(fit)])/2
   cdf <- c(0,cumsum(df)/sum(df))
-  rn <- runif(n)
-  approx(cdf, fit$x, rn)$y
+  rn <- stats::runif(n)
+  stats::approx(cdf, fit$x, rn)$y
 }
 
 #' Modified kernel density function
 #'
-#' Modifies \code(stats::density) by:
-#'  Adding SE and 95% confidence intervals for the density to the output; and
+#' Modifies \code{stats::density} by:
+#'  Adding SE and 95\% confidence intervals for the density to the output; and
 #'  Truncating calculation (not just reporting) of density  values on from and/or to.
 #'
 #' @details Truncation copes with cases where where no data are available outside truncation points.
@@ -218,9 +206,10 @@ redf <- function(n, fit){
 #'
 #' @param x numeric data vector
 #' @param reps bootstrap iterations for SE/interval calculation; set to NULL to suppress
+#' @param ... Additional arguments passed to \code{stas::density}
 #' @return A list with the same components as \code{stats::density} output plus:
 #'  \code{se}: standard error of the density
-#'  \code{lcl}, \code{ucl}: lower and upper 95% confidence intervals of the density
+#'  \code{lcl}, \code{ucl}: lower and upper 95\% confidence intervals of the density
 
 #' @examples
 #' data(BCItime)
@@ -276,8 +265,8 @@ density2 <- function(x, reps=999, ...){
       dmult*denss$y
     }
     bsres <- replicate(reps, f())
-    se <- t(apply(bsres, 1, sd))
-    ci <- t(apply(bsres, 1, quantile, c(0.025,0.975)))
+    se <- t(apply(bsres, 1, stats::sd))
+    ci <- t(apply(bsres, 1, stats::quantile, c(0.025,0.975)))
     dens <- c(dens, se=se, lcl=list(ci[,1]), ucl=list(ci[,2]))
   }
   dens
@@ -286,12 +275,11 @@ density2 <- function(x, reps=999, ...){
 #' Fit activity model to time-of-day data
 #'
 #' Fits kernel density to radian time-of-day data and estimates activity level from this distribution.
-#' Optionally bootstraps the distribution, in which case SEs and confidence limits are also
-#' stored for activity level and PDF.
+#' Optionally: 1. bootstraps the distribution, in which case SEs and confidence limits are also
+#' stored for activity level and PDF; 2. weights the distribution; 3. truncates the distribution at given times.
 #'
-#' @details When no \code{bounds} are given (default), a circular kernel distribution is used.
-#' Otherwise, a normal kernel distribution is used, truncated at the values of \code{bounds},
-#' using \code{density2}.
+#' @details When no \code{bounds} are given (default), a circular kernel distribution is fitted using \code{dvmkern}.
+#' Otherwise, a normal kernel distribution is used, truncated at the values of \code{bounds}, using \code{density2}.
 #'
 #' The bandwidth adjustment multiplier \code{adj} is provided to allow
 #' exploration of the effect of adjusting the internally calculated bandwidth on
@@ -316,21 +304,26 @@ density2 <- function(x, reps=999, ...){
 #' @examples
 #' #Fit without confidence limits
 #' data(BCItime)
-#' tm <- 2*pi*subset(BCItime, species=="paca")$time
+#' tm <- 2*pi*subset(BCItime, species=="brocket")$time
 #' mod1 <- fitact(tm)
 #' plot(mod1)
 #'
 #' #Fit with confidence limits (limited reps to speed up)
-#' mod2 <- fitact(tdat, reps=10)
+#' mod2 <- fitact(tm, sample="data", reps=10)
 #' plot(mod2)
 #'
-#' #Fit weighted function to correct for detection radius 1.21 times higher
-#' #by day than by night, assuming day between pi/2 (6am) and pi*2/3 (6pm)
-#' weight <- 1/ifelse(tdat>pi/2 & tdat<pi*3/2, 1.2, 1)
-#' mod3 <- fitact(tdat, wt=weight, sample="none")
+#' #Fit weighted function to correct for detection radius 1.2 times higher
+#' #by day than by night, assuming day between pi/2 (6 am) and pi*2/3 (6 pm)
+#' weight <- 1/ifelse(tm>pi/2 & tm<pi*3/2, 1.2, 1)
+#' mod3 <- fitact(tm, wt=weight)
 #' plot(mod3)
 #' #Overplot unweighted version for comparison
-#' plot(mod1, add=TRUE, lcol=3)
+#' plot(mod1, add=TRUE, tline=list(col=2))
+#'
+#' #Fit truncated function to consider only night time records,
+#' #assuming night between pi*3/2 (6 pm) and pi/3 (6 am)
+#' mod4 <- fitact(tm, bounds=c(pi*3/2, pi/2))
+#' plot(mod4, centre="night")
 #' @export
 fitact <- function(dat, wt=NULL, reps=999, bw=NULL, adj=1, sample=c("none","data","model"),
                    bounds=NULL, show=TRUE)
@@ -391,14 +384,14 @@ fitact <- function(dat, wt=NULL, reps=999, bw=NULL, adj=1, sample=c("none","data
               pdfs <- apply(samp, 2, function(dat) density2(dat, from=bounds[1], to=bounds[2], weights=wt,
                           adjust=adj, bw=if(is.null(bw)) "nrd0" else bw, reps=NULL)$y)
 
-    sepdf <- apply(pdfs,1,sd)
-    lclpdf <- apply(pdfs,1,quantile,probs=0.025)
-    uclpdf <- apply(pdfs,1,quantile,probs=0.975)
+    sepdf <- apply(pdfs,1,stats::sd)
+    lclpdf <- apply(pdfs,1,stats::quantile,probs=0.025)
+    uclpdf <- apply(pdfs,1,stats::quantile,probs=0.975)
     if(is.null(bounds)) acts <- 1/(2*pi*apply(pdfs,2,max)) else
       acts <- 1/(bdiff*apply(pdfs,2,max))
-    seact <- sd(acts)
-    lclact <- quantile(acts,0.025)
-    uclact <- quantile(acts,0.975)
+    seact <- stats::sd(acts)
+    lclact <- stats::quantile(acts,0.025)
+    uclact <- stats::quantile(acts,0.975)
   }
 
   if(is.null(wt)) wt <- 1
@@ -408,7 +401,7 @@ fitact <- function(dat, wt=NULL, reps=999, bw=NULL, adj=1, sample=c("none","data
   }
   pdftab <- cbind(x=x, y=pdf, se=sepdf, lcl=lclpdf, ucl=uclpdf)[order(x), ]
 
-  new("actmod", data=dat, wt=wt, bw=bw, adj=adj, pdf=pdftab,
+  methods::new("actmod", data=dat, wt=wt, bw=bw, adj=adj, pdf=pdftab,
       act=c(act=act, se=seact, lcl=lclact, ucl=uclact))
 }
 
@@ -424,14 +417,13 @@ fitact <- function(dat, wt=NULL, reps=999, bw=NULL, adj=1, sample=c("none","data
 #' @param reps Number of bootstrap iterations.
 #' @return A named 4-element vector: obs = observed overlap index; null = mean null overlap index; seNull = standard error of the null distribution; pNull = probability observed index arose by chance.
 #' @references Ridout, M.S. & Linkie, M. (2009) Estimating overlap of daily activity patterns from camera trap data. Journal of Agricultural Biological and Environmental Statistics, 14, 322-337.
-#' @seealso \code{\link{overlapEst}}
 #' @examples
 #' #Example with bootstrap reps limited to reduce run time
 #' data(BCItime)
 #' tPaca <- 2*pi*BCItime$time[BCItime$species=="paca"]
 #' tRat <- 2*pi*BCItime$time[BCItime$species=="rat"]
-#' fPaca <- fitact(tPaca, sample="n")
-#' fRat <- fitact(tRat, sample="n")
+#' fPaca <- fitact(tPaca)
+#' fRat <- fitact(tRat)
 #' compareCkern(fPaca,fRat,reps=10)
 #' @export
 compareCkern <- function(fit1, fit2, reps=999){
@@ -457,9 +449,9 @@ compareCkern <- function(fit1, fit2, reps=999){
     m2 <- fitact(y[s[(length(y1)+1):length(y)]], sample="n", bw=fit1@bw, adj=fit1@adj, bounds=bnd)
     ovl5(m1,m2)
   }
-  res <- pbapply(samp, 1, f)
-  fun <- ecdf(res)
-  c(obs=olp, null=mean(res), seNull=sd(res), pNull=fun(olp))
+  res <- pbapply::pbapply(samp, 1, f)
+  fun <- stats::ecdf(res)
+  c(obs=olp, null=mean(res), seNull=stats::sd(res), pNull=fun(olp))
 }
 
 
@@ -477,10 +469,12 @@ compareCkern <- function(fit1, fit2, reps=999){
 #' #Test whether paca have a sigificantly different activity level from rat.
 #' #Bootstrap reps limited to speed up example.
 #' data(BCItime)
-#' tPaca <- 2*pi*BCItime$time[BCItime$species=="paca"]
+#' tPaca <- 2*pi*BCItime$time[BCItime$species=="ocelot"]
 #' tRat <- 2*pi*BCItime$time[BCItime$species=="rat"]
-#' (fPaca <- fitact(tPaca, reps=10))
-#' (fRat <- fitact(tRat, reps=10))
+#' fPaca <- fitact(tPaca, sample="data", reps=10)
+#' fRat <- fitact(tRat, sample="data", reps=10)
+#' fPaca@act
+#' fRat@act
 #' compareAct(list(fPaca,fRat))
 #' @export
 compareAct <- function(fits)
@@ -497,7 +491,7 @@ compareAct <- function(fits)
   dif <- acts[i]-acts[j]
   vardif <- seacts[i]^2 + seacts[j]^2
   W <- dif^2/vardif
-  prob <- 1-pchisq(W,1)
+  prob <- 1-stats::pchisq(W,1)
   res <- cbind(Difference=dif, SE=sqrt(vardif), W=W, p=prob)
   dimnames(res)[[1]] <- paste(i,j,sep="v")
   res
@@ -515,8 +509,8 @@ compareAct <- function(fits)
 #' @examples
 #' data(BCItime)
 #' tPaca <- 2*pi*BCItime$time[BCItime$species=="paca"]
-#' fPaca <- fitact(tPaca, reps=10)
-#' plot(fPaca, hrs=FALSE, frq=FALSE)
+#' fPaca <- fitact(tPaca, sample="data", reps=10)
+#' plot(fPaca)
 #' compareTimes(fPaca, c(5.5,6,0.5,1))
 #' @export
 compareTimes <- function(fit, times)
@@ -537,7 +531,7 @@ compareTimes <- function(fit, times)
   dif <- pdfs[i]-pdfs[j]
   vardif <- sepdfs[i]^2 + sepdfs[j]^2
   W <- dif^2/vardif
-  prob <- 1-pchisq(W,1)
+  prob <- 1-stats::pchisq(W,1)
   res <- cbind(Difference=dif, SE=sqrt(vardif), W=W, p=prob)
   dimnames(res)[[1]] <- paste(i,j,sep="v")
   res
@@ -555,11 +549,12 @@ compareTimes <- function(fit, times)
 #' @examples
 #' data(BCIspeed)
 #' i <- BCIspeed$species=="ocelot"
-#' sp <- log(BCIspeed$speed[i])
-#' tm <- BCIspeed$time[i]*2*pi
+#' log_speed <- log(BCIspeed$speed[i])
+#' time <- BCIspeed$time[i]*2*pi
 #' circseq <- seq(0,2*pi,pi/256)
-#' trend <- lincircKern(circseq, tm, sp)
-#' plot(circseq, trend, type="l")
+#' trend <- lincircKern(circseq, time, log_speed)
+#' plot(time, log_speed, xlim=c(0, 2*pi))
+#' lines(circseq, trend)
 #' @export
 lincircKern <- function(x,circdat,lindat)
 { if(length(lindat)!=length(circdat))
@@ -569,7 +564,7 @@ lincircKern <- function(x,circdat,lindat)
   if(min(x)<0 | max(x)>2*pi)
     stop("x values not between 0 and 2*pi, expecting radian values")
 
-  hs <- 1.06 * min(sd(lindat), (quantile(lindat,0.75)-quantile(lindat,0.25))/1.34) *
+  hs <- 1.06 * min(stats::sd(lindat), (stats::quantile(lindat,0.75)-stats::quantile(lindat,0.25))/1.34) *
     length(lindat)^-0.2
   bw <- 1/hs^2
   dx <- expand.grid(circdat,x)
@@ -605,11 +600,10 @@ lincircKern <- function(x,circdat,lindat)
 #' sp <- log(BCIspeed$speed[i])
 #' tm <- BCIspeed$time[i]*2*pi
 #' mod <- fitlincirc(tm, sp, reps=50)
-#' plot(mod, CircScale=24, xaxp=c(0,24,4),
-#'      xlab="Time", ylab="log(speed m/s)")
+#' plot(mod, CircScale=24, xaxp=c(0,24,4), xlab="Time", ylab="log(speed)")
 #' legend(8,-3, c("Fitted speed", "Null CI"), col=1:2, lty=1:2)
 #' @export
-fitlincirc <- function(circdat,lindat,pCI=0.95,reps=1000,res=512)
+fitlincirc <- function(circdat, lindat, pCI=0.95, reps=10, res=512)
 { if(length(lindat)!=length(circdat))
   stop("lindat and circdat lengths are unequal")
   if(min(circdat)<0 | max(circdat)>2*pi)
@@ -624,17 +618,17 @@ fitlincirc <- function(circdat,lindat,pCI=0.95,reps=1000,res=512)
   {  j <- sample(1:n,n,TRUE)
      lincircKern(x,circdat[j],lindat)
   })
-  nulllcl <- apply(bs,1,quantile,(1-pCI)/2)
-  nullucl <- apply(bs,1,quantile,(1+pCI)/2)
+  nulllcl <- apply(bs,1,stats::quantile,(1-pCI)/2)
+  nullucl <- apply(bs,1,stats::quantile,(1+pCI)/2)
   fit <- lincircKern(x,circdat,lindat)
   p <- sapply(1:(res+1), function(i)
-  { f <- ecdf(bs[i,])
+  { f <- stats::ecdf(bs[i,])
     f(fit[i])
   })
   p[p>0.5] <- 1-p[p>0.5]
   p <- 2*p
 
-  new("lincircmod", data=data.frame(circdat=circdat, lindat=lindat),
+  methods::new("lincircmod", data=data.frame(circdat=circdat, lindat=lindat),
       fit=data.frame(x=x, fit=fit, p=p, nullLCL=nulllcl, nullUCL=nullucl))
 }
 
@@ -655,6 +649,24 @@ fitlincirc <- function(circdat,lindat,pCI=0.95,reps=1000,res=512)
 #' @param add Logical defining whether to create a new plot (default) or add to an existing plot.
 #' @param xaxis List of plotting parameters to pass to axis command for x-axis plot (see axis for arguments).
 #' @param ... Additional arguments passed to internal plot call affecting only the plot frame and y axis. Modify x axis through xaxis.
+#' @examples
+#' data(BCItime)
+#' otm <- 2*pi*subset(BCItime, species=="ocelot")$time
+#' btm <- 2*pi*subset(BCItime, species=="brocket")$time
+#' omod <- fitact(otm)
+#' bmod <- fitact(btm)
+#' plot(omod, yunit="density", data="none")
+#' plot(bmod, yunit="density", data="none", add=TRUE, tline=list(col="red"))
+#' legend("topleft", c("Ocelot", "Brocket deer"), col=1:2, lty=1)
+#'
+#' mod <- fitact(otm, sample="data", reps=10)
+#' plot(mod, dline=list(col="grey"),
+#'           tline=list(col="red", lwd=2),
+#'           cline=list(col="red", lty=3))
+#'
+#' mod2 <- fitact(otm, bounds=c(pi*3/2, pi/2))
+#' plot(mod2, centre="night")
+#' plot(mod2, centre="night", xlim=c(-6,6), xaxis=list(at=seq(-6,6,2)))
 #' @export
 plot.actmod <- function(x, xunit=c("clock","hours","radians"), yunit=c("frequency","density"),
                         data=c("histogram","rug","both","none"), centre=c("day","night"),
@@ -677,7 +689,7 @@ plot.actmod <- function(x, xunit=c("clock","hours","radians"), yunit=c("frequenc
                      "hours"=append(pprm, list(xlab="Hours")),
                      "radians"=append(pprm, list(xlab="Radians"))
       )
-    do.call(plot, pprm)
+    do.call(graphics::plot, pprm)
     xaxis <- append(list(side=1), xaxis[!(names(xaxis)=="side")])
     if(xunit=="clock"){
       if(!("at" %in% names(xaxis))){
@@ -697,7 +709,7 @@ plot.actmod <- function(x, xunit=c("clock","hours","radians"), yunit=c("frequenc
         xaxis <- append(xaxis, list(labels=lab))
       }
     }
-    do.call(axis, xaxis)
+    do.call(graphics::axis, xaxis)
   }
   ########## end setup function #############
 
@@ -749,8 +761,8 @@ plot.actmod <- function(x, xunit=c("clock","hours","radians"), yunit=c("frequenc
 
   if(data %in% c("histogram","both")){
     h <- switch(centre,
-                "day"=hist(fdata, breaks=seq(0,maxbrk,maxbrk/24), plot=F),
-                "night"=hist(fdata, breaks=seq(-maxbrk/2,maxbrk/2,maxbrk/24), plot=F))
+                "day"=graphics::hist(fdata, breaks=seq(0,maxbrk,maxbrk/24), plot=F),
+                "night"=graphics::hist(fdata, breaks=seq(-maxbrk/2,maxbrk/2,maxbrk/24), plot=F))
     d <- switch(yunit,
                 "frequency"=h$counts,
                 "density"=h$density)
@@ -761,25 +773,25 @@ plot.actmod <- function(x, xunit=c("clock","hours","radians"), yunit=c("frequenc
   if(!add) setup(...)
   if(data %in% c("histogram","both")){
     if(!"lwd" %in% names(dline)) dline <- append(dline, list(lwd=1))
-    do.call(lines, append(list(x=h$breaks, y=c(d,d[1]), type="s"), dline))
+    do.call(graphics::lines, append(list(x=h$breaks, y=c(d,d[1]), type="s"), dline))
   }
   if(data %in% c("rug","both")){
     if(!"lwd" %in% names(dline)) dline <- append(dline, list(lwd=0.1))
     for(i in 1:length(fdata))
-      do.call(lines, append(list(x=rep(fdata[i],2), y=max(y,na.rm=T)*-c(0,0.03)), dline))
+      do.call(graphics::lines, append(list(x=rep(fdata[i],2), y=max(y,na.rm=T)*-c(0,0.03)), dline))
   }
 
   #Plot trend
   i <- x < switch(centre, "day"=ifelse(xunit=="radians", pi, 12), 0)
-  do.call(lines, append(list(x=x[i], y=y[i]), tline))
-  do.call(lines, append(list(x=x[!i], y=y[!i]), tline))
+  do.call(graphics::lines, append(list(x=x[i], y=y[i]), tline))
+  do.call(graphics::lines, append(list(x=x[!i], y=y[!i]), tline))
 
   #Plot conf intervals
   if(length(lcl)>0)
-  { do.call(lines, append(list(x=x[i], y=lcl[i]), cline))
-    do.call(lines, append(list(x=x[i], y=ucl[i]), cline))
-    do.call(lines, append(list(x=x[!i], y=lcl[!i]), cline))
-    do.call(lines, append(list(x=x[!i], y=ucl[!i]), cline))
+  { do.call(graphics::lines, append(list(x=x[i], y=lcl[i]), cline))
+    do.call(graphics::lines, append(list(x=x[i], y=ucl[i]), cline))
+    do.call(graphics::lines, append(list(x=x[!i], y=lcl[!i]), cline))
+    do.call(graphics::lines, append(list(x=x[!i], y=ucl[!i]), cline))
   }
 }
 
@@ -804,20 +816,20 @@ plot.lincircmod <- function(x, CircScale=2*pi, tlim=c(0,1), fcol="black", flty=1
   LinearData <- dat$lindat
   CircularData <- dat$circdat*CircScale/(2*pi)
   range <- tlim*CircScale
-  plot(CircularData, LinearData, ...)
+  graphics::plot(CircularData, LinearData, ...)
   if(range[1]<range[2])
   { i <- xx>=range[1] & xx<=range[2]
-    lines(xx[i], fit$fit[i], col=fcol, lty=flty)
-    lines(xx[i], fit$nullLCL[i], col=ncol, lty=nlty)
-    lines(xx[i], fit$nullUCL[i], col=ncol, lty=nlty)
+    graphics::lines(xx[i], fit$fit[i], col=fcol, lty=flty)
+    graphics::lines(xx[i], fit$nullLCL[i], col=ncol, lty=nlty)
+    graphics::lines(xx[i], fit$nullUCL[i], col=ncol, lty=nlty)
   } else
   {  i <- xx>=range[1]
-     lines(xx[i], fit$fit[i], col=fcol, lty=flty)
-     lines(xx[i], fit$nullLCL[i], col=ncol, lty=nlty)
-     lines(xx[i], fit$nullUCL[i], col=ncol, lty=nlty)
+     graphics::lines(xx[i], fit$fit[i], col=fcol, lty=flty)
+     graphics::lines(xx[i], fit$nullLCL[i], col=ncol, lty=nlty)
+     graphics::lines(xx[i], fit$nullUCL[i], col=ncol, lty=nlty)
      i <- xx<=range[2]
-     lines(xx[i], fit$fit[i], col=fcol, lty=flty)
-     lines(xx[i], fit$nullLCL[i], col=ncol, lty=nlty)
-     lines(xx[i], fit$nullUCL[i], col=ncol, lty=nlty)
+     graphics::lines(xx[i], fit$fit[i], col=fcol, lty=flty)
+     graphics::lines(xx[i], fit$nullLCL[i], col=ncol, lty=nlty)
+     graphics::lines(xx[i], fit$nullUCL[i], col=ncol, lty=nlty)
   }
 }
