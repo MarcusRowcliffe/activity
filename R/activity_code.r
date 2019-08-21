@@ -81,20 +81,20 @@ setClass("lincircmod", representation(data="data.frame", fit="data.frame"))
 
 #' Index of overlap between circular distributions.
 #'
-#' Calculates Dhat5 overlap index (see reference) between two kernel distributions .
+#' Calculates Dhat4 overlap index (see reference) between two kernel distributions.
 #'
 #' Uses linear interpolation to impute values from kernel distributions.
 #'
 #' @param fit1,fit2 Fitted activity models of class actmod created using function fitact.
-#' @return Scalar overlap index (specifically Dhat5).
+#' @return Scalar overlap index (specifically Dhat4).
 #' @references Ridout, M.S. & Linkie, M. (2009) Estimating overlap of daily activity patterns from camera trap data. Journal of Agricultural Biological and Environmental Statistics, 14, 322-337.
 #' @examples
 #' data(BCItime)
 #' oceAct <- fitact(subset(BCItime, species=="ocelot")$time*2*pi)
 #' broAct <- fitact(subset(BCItime, species=="brocket")$time*2*pi)
-#' ovl5(oceAct, broAct)
+#' ovl4(oceAct, broAct)
 #' @export
-ovl5 <- function(fit1, fit2){
+ovl4 <- function(fit1, fit2){
   f <- stats::approxfun(fit1@pdf[,1], fit1@pdf[,2])
   g <- stats::approxfun(fit2@pdf[,1], fit2@pdf[,2])
   fx <- f(fit1@data)
@@ -409,7 +409,7 @@ fitact <- function(dat, wt=NULL, reps=999, bw=NULL, adj=1, sample=c("none","data
 #'
 #' Randomisation test for the probability that two sets of circular observations come from the same distribution.
 #'
-#' Calculates overlap index Dhat5 (see references) for the two fitted distributions, then generates a null distribution of overlap indices using data sampled randomly with replacement from the combined data.
+#' Calculates overlap index Dhat4 (see references) for the two fitted distributions, then generates a null distribution of overlap indices using data sampled randomly with replacement from the combined data.
 #' This randomised distribution is then used to define an empirical probability distribution against which  the probability that the observed overlap arose by chance is judged.
 #' When one or both fitted models use weighted distributions, sampling probabilities are taken from the weights. If both models are weighted, the weights must therefore be on the same scale.
 #'
@@ -434,7 +434,7 @@ compareCkern <- function(fit1, fit2, reps=999){
     stop("Distribution bounds are not identical")
 
   if(diff(bnd)==2*pi) bnd <- NULL
-  olp <- ovl5(fit1,fit2)
+  olp <- ovl4(fit1,fit2)
   y1 <- fit1@data
   y2 <- fit2@data
   w1 <- fit1@wt
@@ -447,7 +447,7 @@ compareCkern <- function(fit1, fit2, reps=999){
   f <- function(s){
     m1 <- fitact(y[s[1:length(y1)]], sample="n", bw=fit1@bw, adj=fit1@adj, bounds=bnd)
     m2 <- fitact(y[s[(length(y1)+1):length(y)]], sample="n", bw=fit1@bw, adj=fit1@adj, bounds=bnd)
-    ovl5(m1,m2)
+    ovl4(m1,m2)
   }
   res <- pbapply::pbapply(samp, 1, f)
   fun <- stats::ecdf(res)
