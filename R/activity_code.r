@@ -711,7 +711,7 @@ plot.actmod <- function(x, xunit=c("clock","hours","radians"), yunit=c("frequenc
     }
     do.call(graphics::axis, xaxis)
   }
-  ########## end setup function #############
+  ### end setup function ###
 
   data <- match.arg(data)
   xunit <- match.arg(xunit)
@@ -832,4 +832,152 @@ plot.lincircmod <- function(x, CircScale=2*pi, tlim=c(0,1), fcol="black", flty=1
      graphics::lines(xx[i], fit$nullLCL[i], col=ncol, lty=nlty)
      graphics::lines(xx[i], fit$nullUCL[i], col=ncol, lty=nlty)
   }
+}
+
+
+# SOLAR TIME FUNCTIONS ####
+require(insol)
+
+
+#gettime
+#Converts character, POSIXct or POSIXlt time of day data to numeric
+
+#ARGUMENTS
+# x: vector of character, POSIXct or POSIXlt time data to convert
+# format: used only if x is character, see strptime
+# scale: scale on which to return times (see below)
+
+#VALUE
+#A vector of numeric times of day in units defined by scale:
+# radian: [0,2*pi]
+# hours: [0,24]
+# proportion: [0,1]
+gettime <- function(x, format="%Y-%m-%d %H:%M:%S", scale=c("radian","hour","proportion")){
+  if(class(x)[1]=="character") x <- strptime(x, format, "UTC") else
+    if(class(x)[1]=="POSIXct") x <- as.POSIXlt(x) else
+      if(class(x)[1]!="POSIXlt") stop("x must be character or POSIXt class")
+    if(any(is.na(x))) warning("Some dates are NA, may not be correctly formatted")
+
+    scale <- match.arg(scale)
+
+    res <- x$hour + x$min/60 + x$sec/3600
+    if(scale=="radian") res <- res*pi/12
+    if(scale=="proportion") res <- res/24
+    if(all(res==0, na.rm=T)) warning("All times are 0: may be just strptime default?")
+    res
+}
+
+
+#wrap
+#Wraps data on the range given by bounds; defaults to radian [0,2*pi]
+
+#ARGUMENTS
+# x: vecor of numeric data
+# bounds: the limits within which to wrap x values
+
+#VALUE
+#A vector of numeric values within the limits defined by bounds
+wrap <- function(x, bounds=c(0,2*pi)){
+  bounds[1] + (x-bounds[1]) %% diff(bounds)
+}
+
+
+#cmean
+#Circular mean direction of radian data
+
+#ARGUMENTS
+# x: a vector of radian values
+# ...: arguments passed to mean
+
+#VALUE
+#A radian value giving mean direction
+cmean <- function(x, ...){
+  X <- mean(cos(x), ...)
+  Y <- mean(sin(x), ...)
+  wrap(atan(Y/X) + ifelse(X<0,pi,0))
+}
+
+
+#solartime
+#A wrapper for (average-anchored) transtime that takes non-numeric input and
+#calculates mean average sunrise and sunset times from lat/long co-ordinates.
+
+#ARGUMENTS
+# event: a vector of character, POSIXct or POSIXlt date-time values
+# lat, long: single numeric values giving site latitude and longitude
+# tz: numeric single value or vector same length as event giving time zone
+#     in which event times recorded, in hours relative to UTC (GMT)
+# format: used only if event is character, see strptime
+#
+#VALUE
+#A list with elements:
+# input: event input in POSIXlt format
+# clock: radian clock time data
+# solar: double-anchored solar time data
+solartime <- function(event, lat, long, tz, format="%Y-%m-%d %H:%M:%S"){
+  if(class(event)[1]=="character"){
+    event <- strptime(event, format, "UTC")
+  } else
+    if(class(event)[2]!="POSIXt") stop("x must be character or POSIXt class")
+  if(any(is.na(event))) stop("Some dates are NA, may not be correctly formatted")
+
+  suntimes <- wrap(daylength(lat, long, JD(event), tz)[,-3] * pi/12)
+  tm <- gettime(event)
+  list(input=event, clock=tm, solar=transtime(tm, suntimes))
+}
+
+
+#transtime
+#Transforms clock times to times adjusted relative to anchor time(s)
+
+#ARGUMENTS
+# event: a vector of radian event clock times
+# anchor: a vector or matrix of radian anchor times on event days;
+#         if double anchored, two-column matrix required.
+# mean.anchor: scalar (for type=="single") or two-element vector of
+#              anchor points on transformed scale; if NULL, defaults to
+#              {pi/2, pi3/2} when type=="equinoctial", otherwise anchor mean(s).
+# type: transformation to use:
+#   average: anchored to average anchor times
+#   equinoctial": anchored to pi/2 and pi*3/2
+#   single: anchored to average anchor time
+
+#VALUE
+#A vector of transformed radian times.
+
+transtime <- function(event, anchor, mnanchor=NULL, type=c("average", "equinoctial", "single")){
+  if(is.null(ncol(anchor))) anchor <- matrix(anchor, ncol=1)
+  if(!all(apply(anchor, 2, is.numeric))) stop("anchor must be a numeric vector, matrix or data.frame")
+  nr <- nrow(anchor)
+  if(length(event) != nr) stop("event and anchor have different lengths")
+  type <- match.arg(type)
+  nc <- ncol(anchor)
+  if(is.null(mnanchor)) mnanchor <- apply(anchor, 2, cmean)
+  if(type=="single"){
+    if(nc>1) warning("only one column needed for anchor; additional columns ignored")
+  } else{
+    if(nc==1) stop("double anchoring requires a two-column matrix or data.frame for anchor")
+    if(!is.vector(mnanchor) | length(mnanchor)!=2) stop("if provided, mnanchor must be a 2-element vector for double anchoring")
+    if(nc>2) warning("only two columns needed for anchor; additional columns ignored")
+  }
+
+  if(type=="single"){
+    res <- wrap(mnanchor[1] + event - anchor[,1])
+  } else{
+    difs <- wrap(cbind(event,event)-anchor)
+    flip <- difs[,1]>difs[,2]
+    a1 <- ifelse(flip, anchor[,2], anchor[,1])
+    a2 <- ifelse(flip, anchor[,1], anchor[,2])
+    relpos <- wrap(event-a1) / wrap(a2-a1)
+    interval <- switch(type,
+                       "equinoctial"=pi,
+                       "average"=ifelse(flip, wrap(mnanchor[1]-mnanchor[2]), wrap(mnanchor[2]-mnanchor[1]))
+    )
+    baseline <- switch(type,
+                       "equinoctial"=ifelse(flip, pi*3/2, pi/2),
+                       "average"=ifelse(flip, mnanchor[2], mnanchor[1])
+    )
+    res <- wrap(baseline + interval * relpos)
+  }
+  res
 }
