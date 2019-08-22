@@ -852,6 +852,18 @@ require(insol)
 # radian: [0,2*pi]
 # hours: [0,24]
 # proportion: [0,1]
+
+#' @examples
+#' data(BCItime)
+load("C:/Users/rowcliffe.m/OneDrive - Zoological Society of London/GitHub/activity/activity/data/BCItime.rda")
+
+rtime <- gettime(BCItime$date, "%d/%m/%Y %H:%M")
+htime <- gettime(BCItime$date, "%d/%m/%Y %H:%M", "hour")
+ptime <- gettime(BCItime$date, "%d/%m/%Y %H:%M", "proportion")
+summary(rtime)
+summary(htime)
+summary(ptime)
+
 gettime <- function(x, format="%Y-%m-%d %H:%M:%S", scale=c("radian","hour","proportion")){
   if(class(x)[1]=="character") x <- strptime(x, format, "UTC") else
     if(class(x)[1]=="POSIXct") x <- as.POSIXlt(x) else
@@ -877,6 +889,14 @@ gettime <- function(x, format="%Y-%m-%d %H:%M:%S", scale=c("radian","hour","prop
 
 #VALUE
 #A vector of numeric values within the limits defined by bounds
+
+#' @examples
+#' data(BCItime)
+adjtime <- BCItime$time + 1/24
+summary(adjtime)
+adjtime <- wrap(adjtime, c(0,1))
+summary(adjtime)
+
 wrap <- function(x, bounds=c(0,2*pi)){
   bounds[1] + (x-bounds[1]) %% diff(bounds)
 }
@@ -891,6 +911,12 @@ wrap <- function(x, bounds=c(0,2*pi)){
 
 #VALUE
 #A radian value giving mean direction
+
+#' @examples
+#' data(BCItime)
+times <- subset(BCItime, species=="ocelot")$time*2*pi
+cmean(times)
+
 cmean <- function(x, ...){
   X <- mean(cos(x), ...)
   Y <- mean(sin(x), ...)
@@ -914,6 +940,17 @@ cmean <- function(x, ...){
 # input: event input in POSIXlt format
 # clock: radian clock time data
 # solar: double-anchored solar time data
+
+#' @examples
+#' data(BCItime)
+
+subdat <- subset(BCItime, species=="ocelot")
+times <- solartime(subdat$date, 9.156335, -79.847682, -5, "%d/%m/%Y %H:%M")
+rawAct <- fitact(times$clock)
+transAct <- fitact(times$solar)
+plot(transAct)
+plot(rawAct, add=TRUE, data="n", tline=list(col="blue"))
+
 solartime <- function(event, lat, long, tz, format="%Y-%m-%d %H:%M:%S"){
   if(class(event)[1]=="character"){
     event <- strptime(event, format, "UTC")
@@ -936,14 +973,27 @@ solartime <- function(event, lat, long, tz, format="%Y-%m-%d %H:%M:%S"){
 #         if double anchored, two-column matrix required.
 # mean.anchor: scalar (for type=="single") or two-element vector of
 #              anchor points on transformed scale; if NULL, defaults to
-#              {pi/2, pi3/2} when type=="equinoctial", otherwise anchor mean(s).
+#              [pi/2, pi3/2] when type=="equinoctial", otherwise anchor mean(s).
 # type: transformation to use:
 #   average: anchored to average anchor times
-#   equinoctial": anchored to pi/2 and pi*3/2
+#   equinoctial: anchored to pi/2 and pi*3/2
 #   single: anchored to average anchor time
 
 #VALUE
 #A vector of transformed radian times.
+
+#' @examples
+#' data(BCItime)
+
+subdat <- subset(BCItime, species=="ocelot")
+jdate <- JD(strptime(subdat$date, "%d/%m/%Y %H:%M", "UTC"))
+suntimes <- daylength(9.156335, -79.847682, jdate, -5)[, -3]
+rawtimes <- subdat$time*2*pi
+transtimes <- transtime(rawtimes, suntimes*pi/12)
+rawAct <- fitact(rawtimes)
+transAct <- fitact(transtimes)
+plot(transAct)
+plot(rawAct, add=TRUE, data="n", tline=list(col="blue"))
 
 transtime <- function(event, anchor, mnanchor=NULL, type=c("average", "equinoctial", "single")){
   if(is.null(ncol(anchor))) anchor <- matrix(anchor, ncol=1)
