@@ -199,7 +199,7 @@ redf <- function(n, fit){
 #'  Adding SE and 95\% confidence intervals for the density to the output; and
 #'  Truncating calculation (not just reporting) of density  values on from and/or to.
 #'
-#' @details Truncation copes with cases where where no data are available outside truncation points.
+#' @details Truncation copes with cases where no data are available outside truncation points.
 #' Truncation is achieved by fitting the density to the data augmented by reflecting it
 #' across each bound using the optimal bandwidth for the unaugmented data, and returning
 #' the resulting densities for the region between the bounds.
@@ -856,7 +856,6 @@ require(insol)
 #' @examples
 #' data(BCItime)
 load("C:/Users/rowcliffe.m/OneDrive - Zoological Society of London/GitHub/activity/activity/data/BCItime.rda")
-
 rtime <- gettime(BCItime$date, "%d/%m/%Y %H:%M")
 htime <- gettime(BCItime$date, "%d/%m/%Y %H:%M", "hour")
 ptime <- gettime(BCItime$date, "%d/%m/%Y %H:%M", "proportion")
@@ -868,7 +867,6 @@ gettime <- function(x, format="%Y-%m-%d %H:%M:%S", scale=c("radian","hour","prop
   if(class(x)[1]=="character") x <- strptime(x, format, "UTC") else
     if(class(x)[1]=="POSIXct") x <- as.POSIXlt(x) else
       if(class(x)[1]!="POSIXlt") stop("x must be character or POSIXt class")
-    if(any(is.na(x))) warning("Some dates are NA, may not be correctly formatted")
 
     scale <- match.arg(scale)
 
@@ -929,11 +927,11 @@ cmean <- function(x, ...){
 #calculates mean average sunrise and sunset times from lat/long co-ordinates.
 
 #ARGUMENTS
-# event: a vector of character, POSIXct or POSIXlt date-time values
+# dat: a vector of character, POSIXct or POSIXlt date-time values
 # lat, long: single numeric values giving site latitude and longitude
-# tz: numeric single value or vector same length as event giving time zone
+# tz: numeric single value or vector same length as dat giving time zone
 #     in which event times recorded, in hours relative to UTC (GMT)
-# format: used only if event is character, see strptime
+# format: used only if dat is character, see strptime
 #
 #VALUE
 #A list with elements:
@@ -947,20 +945,26 @@ cmean <- function(x, ...){
 subdat <- subset(BCItime, species=="ocelot")
 times <- solartime(subdat$date, 9.156335, -79.847682, -5, "%d/%m/%Y %H:%M")
 rawAct <- fitact(times$clock)
-transAct <- fitact(times$solar)
-plot(transAct)
-plot(rawAct, add=TRUE, data="n", tline=list(col="blue"))
+avgAct <- fitact(times$solar)
+plot(rawAct)
+plot(avgAct, add=TRUE, data="n", tline=list(col="cyan"))
 
-solartime <- function(event, lat, long, tz, format="%Y-%m-%d %H:%M:%S"){
-  if(class(event)[1]=="character"){
-    event <- strptime(event, format, "UTC")
+solartime <- function(dat, lat, long, tz, format="%Y-%m-%d %H:%M:%S"){
+  if(class(dat)[1]=="character"){
+    dat <- strptime(dat, format, "UTC")
+    if(any(is.na(dat))) stop("Date conversion was at least partly unsuccessful - check formatting")
   } else
-    if(class(event)[2]!="POSIXt") stop("x must be character or POSIXt class")
-  if(any(is.na(event))) stop("Some dates are NA, may not be correctly formatted")
+    if(!grepl("POSIX", class(dat)[1]))
+      stop("dat must be character or POSIXt class")
+  posdat <- list(lat,long,tz)
+  if(any(unlist(lapply(posdat, class)) != "numeric") |
+     any(unlist(lapply(posdat, length)) != length(dat) &
+         unlist(lapply(posdat, length)) != 1))
+    stop("lat, long and tz must all be numeric scalars or vectors the same length as dat")
 
-  suntimes <- wrap(daylength(lat, long, JD(event), tz)[,-3] * pi/12)
-  tm <- gettime(event)
-  list(input=event, clock=tm, solar=transtime(tm, suntimes))
+  suntimes <- wrap(daylength(lat, long, JD(dat), tz)[,-3] * pi/12)
+  tm <- gettime(dat)
+  list(input=dat, clock=tm, solar=transtime(tm, suntimes))
 }
 
 
@@ -968,7 +972,7 @@ solartime <- function(event, lat, long, tz, format="%Y-%m-%d %H:%M:%S"){
 #Transforms clock times to times adjusted relative to anchor time(s)
 
 #ARGUMENTS
-# event: a vector of radian event clock times
+# dat: a vector of radian event clock times
 # anchor: a vector or matrix of radian anchor times on event days;
 #         if double anchored, two-column matrix required.
 # mean.anchor: scalar (for type=="single") or two-element vector of
@@ -987,22 +991,31 @@ solartime <- function(event, lat, long, tz, format="%Y-%m-%d %H:%M:%S"){
 
 subdat <- subset(BCItime, species=="ocelot")
 jdate <- JD(strptime(subdat$date, "%d/%m/%Y %H:%M", "UTC"))
-suntimes <- daylength(9.156335, -79.847682, jdate, -5)[, -3]
+suntimes <- pi/12 * daylength(9.156335, -79.847682, jdate, -5)[, -3]
 rawtimes <- subdat$time*2*pi
-transtimes <- transtime(rawtimes, suntimes*pi/12)
+avgtimes <- transtime(rawtimes, suntimes)
+eqntimes <- transtime(rawtimes, suntimes, type="equinoctial")
+sngtimes <- transtime(rawtimes, suntimes[,1], type="single")
 rawAct <- fitact(rawtimes)
-transAct <- fitact(transtimes)
-plot(transAct)
-plot(rawAct, add=TRUE, data="n", tline=list(col="blue"))
+avgAct <- fitact(avgtimes)
+eqnAct <- fitact(eqntimes)
+sngAct <- fitact(sngtimes)
+plot(rawAct)
+plot(avgAct, add=TRUE, data="n", tline=list(col="magenta"))
+plot(eqnAct, add=TRUE, data="n", tline=list(col="orange"))
+plot(sngAct, add=TRUE, data="n", tline=list(col="cyan"))
 
-transtime <- function(event, anchor, mnanchor=NULL, type=c("average", "equinoctial", "single")){
+transtime <- function(dat, anchor, mnanchor=NULL, type=c("average", "equinoctial", "single")){
+  if(!all(dat>=0 & dat<=2*pi, na.rm=TRUE)) warning("some dat values are <0 or >2*pi, expecting radian data")
+  if(max(dat, na.rm=TRUE)<1) warning("max(dat) < 1, expecting radian data")
+  if(!all(anchor>=0 & anchor<=2*pi, na.rm=TRUE)) warning("some anchor values are <0 or >2*pi, expecting radian values")
   if(is.null(ncol(anchor))) anchor <- matrix(anchor, ncol=1)
   if(!all(apply(anchor, 2, is.numeric))) stop("anchor must be a numeric vector, matrix or data.frame")
   nr <- nrow(anchor)
-  if(length(event) != nr) stop("event and anchor have different lengths")
+  if(length(dat) != nr) stop("dat and anchor have different lengths")
   type <- match.arg(type)
   nc <- ncol(anchor)
-  if(is.null(mnanchor)) mnanchor <- apply(anchor, 2, cmean)
+  if(is.null(mnanchor)) mnanchor <- apply(anchor, 2, cmean, na.rm=TRUE)
   if(type=="single"){
     if(nc>1) warning("only one column needed for anchor; additional columns ignored")
   } else{
@@ -1012,13 +1025,13 @@ transtime <- function(event, anchor, mnanchor=NULL, type=c("average", "equinocti
   }
 
   if(type=="single"){
-    res <- wrap(mnanchor[1] + event - anchor[,1])
+    res <- wrap(mnanchor[1] + dat - anchor[,1])
   } else{
-    difs <- wrap(cbind(event,event)-anchor)
+    difs <- wrap(cbind(dat,dat)-anchor)
     flip <- difs[,1]>difs[,2]
     a1 <- ifelse(flip, anchor[,2], anchor[,1])
     a2 <- ifelse(flip, anchor[,1], anchor[,2])
-    relpos <- wrap(event-a1) / wrap(a2-a1)
+    relpos <- wrap(dat-a1) / wrap(a2-a1)
     interval <- switch(type,
                        "equinoctial"=pi,
                        "average"=ifelse(flip, wrap(mnanchor[1]-mnanchor[2]), wrap(mnanchor[2]-mnanchor[1]))
