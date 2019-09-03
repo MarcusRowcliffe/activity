@@ -835,34 +835,27 @@ plot.lincircmod <- function(x, CircScale=2*pi, tlim=c(0,1), fcol="black", flty=1
 }
 
 
-# SOLAR TIME FUNCTIONS ####
-require(insol)
-
-
-#gettime
-#Converts character, POSIXct or POSIXlt time of day data to numeric
-
-#ARGUMENTS
-# x: vector of character, POSIXct or POSIXlt time data to convert
-# format: used only if x is character, see strptime
-# scale: scale on which to return times (see below)
-
-#VALUE
-#A vector of numeric times of day in units defined by scale:
-# radian: [0,2*pi]
-# hours: [0,24]
-# proportion: [0,1]
-
+#' Convert time of day data to numeric
+#'
+#' Accepts data of class POSIXct, POSIXlt or character and returns the  time of day element as numeric (any date element is ignored).
+#'
+#' @param x A vector of POSIXct, POSIXlt or character format time data to convert.
+#' @param format A character string defining the time/date format if \code{x} is character format, see \code{strptime} for details. Ignored if \code{x} is not character.
+#' @param scale The scale on which to return times (see Value for options).
+#' @return A vector of numeric times of day in units defined by the \code{scale} argument:
+#' radian, on the range [0, 2*pi];
+#' hours, on the range [0, 24];
+#' proportion, on the range [0, 1].
+#' @seealso \code{\link{strptime}}
 #' @examples
 #' data(BCItime)
-load("C:/Users/rowcliffe.m/OneDrive - Zoological Society of London/GitHub/activity/activity/data/BCItime.rda")
-rtime <- gettime(BCItime$date, "%d/%m/%Y %H:%M")
-htime <- gettime(BCItime$date, "%d/%m/%Y %H:%M", "hour")
-ptime <- gettime(BCItime$date, "%d/%m/%Y %H:%M", "proportion")
-summary(rtime)
-summary(htime)
-summary(ptime)
-
+#' rtime <- gettime(BCItime$date, "%d/%m/%Y %H:%M")
+#' htime <- gettime(BCItime$date, "%d/%m/%Y %H:%M", "hour")
+#' ptime <- gettime(BCItime$date, "%d/%m/%Y %H:%M", "proportion")
+#' summary(rtime)
+#' summary(htime)
+#' summary(ptime)
+#' @export
 gettime <- function(x, format="%Y-%m-%d %H:%M:%S", scale=c("radian","hour","proportion")){
   if(class(x)[1]=="character") x <- strptime(x, format, "UTC") else
     if(class(x)[1]=="POSIXct") x <- as.POSIXlt(x) else
@@ -878,43 +871,40 @@ gettime <- function(x, format="%Y-%m-%d %H:%M:%S", scale=c("radian","hour","prop
 }
 
 
-#wrap
-#Wraps data on the range given by bounds; defaults to radian [0,2*pi]
-
-#ARGUMENTS
-# x: vecor of numeric data
-# bounds: the limits within which to wrap x values
-
-#VALUE
-#A vector of numeric values within the limits defined by bounds
-
+#' Wraps data on a given range.
+#'
+#' Input data outside the given bounds (default radian [0, 2*pi]) are wrapped to appear within the range.
+#'
+#' @details As an example of wrapping, on bounds [0, 1], a value of 1.2 will be converted to 0.2, while a value of -0.2 will be converted to 0.8.
+#' @param x A vector of numeric data.
+#' @param bounds The range within which to wrap \code{x} values
+#' @return A vector of numeric values within the limits defined by \code{bounds}
 #' @examples
 #' data(BCItime)
-adjtime <- BCItime$time + 1/24
-summary(adjtime)
-adjtime <- wrap(adjtime, c(0,1))
-summary(adjtime)
-
+#' adjtime <- BCItime$time + 1/24
+#' summary(adjtime)
+#' adjtime <- wrap(adjtime, c(0,1))
+#' summary(adjtime)
+#' @export
 wrap <- function(x, bounds=c(0,2*pi)){
   bounds[1] + (x-bounds[1]) %% diff(bounds)
 }
 
 
-#cmean
-#Circular mean direction of radian data
-
-#ARGUMENTS
-# x: a vector of radian values
-# ...: arguments passed to mean
-
-#VALUE
-#A radian value giving mean direction
-
+#' Circular mean
+#'
+#' Calculates the average direction of a set of radian circular values.
+#'
+#' @details The \code{base::mean} function is use internally, and additional arguments, e.g for missing data handling, are passed to this.
+#' @param x A vector of radian values.
+#' @param ... Arguments passed to \code{mean}.
+#' @return A radian value giving mean direction.
+#' @seealso \code{\link{mean}}
 #' @examples
 #' data(BCItime)
-times <- subset(BCItime, species=="ocelot")$time*2*pi
-cmean(times)
-
+#' times <- subset(BCItime, species=="ocelot")$time*2*pi
+#' cmean(times)
+#' @export
 cmean <- function(x, ...){
   X <- mean(cos(x), ...)
   Y <- mean(sin(x), ...)
@@ -922,33 +912,30 @@ cmean <- function(x, ...){
 }
 
 
-#solartime
-#A wrapper for (average-anchored) transtime that takes non-numeric input and
-#calculates mean average sunrise and sunset times from lat/long co-ordinates.
-
-#ARGUMENTS
-# dat: a vector of character, POSIXct or POSIXlt date-time values
-# lat, long: single numeric values giving site latitude and longitude
-# tz: numeric single value or vector same length as dat giving time zone
-#     in which event times recorded, in hours relative to UTC (GMT)
-# format: used only if dat is character, see strptime
-#
-#VALUE
-#A list with elements:
-# input: event input in POSIXlt format
-# clock: radian clock time data
-# solar: double-anchored solar time data
-
+#' Transforms clock time to solar time anchored to sun rise and sunset times for a given location.
+#'
+#' This is a wrapper for \code{transtime} that takes non-numeric date-time input together with latitude and longitude to calculate mean average sunrise and sunset times, which are then used to anchor the transformation using average anchoring.
+#'
+#' @details Time zone \code{tz} should be expressed in numeric hours relative to UTC (GMT).
+#' @param dat A vector of character, POSIXct or POSIXlt date-time values.
+#' @param lat,long Single numeric values or numeric vectors the same length as \code{dat} giving site latitude and longitude in decimal format.
+#' @param tz A single numeric value or numeric vector same length as \code{dat} giving time zone (see Details).
+#' @param format A character string defining the time-date format if \code{dat} is character format, see \code{strptime} for details. Ignored if \code{x} is not character.
+#' @return A list with elements:
+#' @return \code{input}: event input dates-times in POSIXlt format.
+#' @return \code{clock}: radian clock time data.
+#' @return \code{solar}: radian solar time data anchored to average sun rise and sun set times.
+#' @references Vazquez, C., Rowcliffe, J.M., Spoelstra, K. and Jansen, P.A. in press. Comparing diel activity patterns of wildlife across latitudes and seasons: time transformation using day length. Methods in Ecology and Evolution.
+#' @seealso \code{\link{strptime}, \link{transtime}}
 #' @examples
 #' data(BCItime)
-
-subdat <- subset(BCItime, species=="ocelot")
-times <- solartime(subdat$date, 9.156335, -79.847682, -5, "%d/%m/%Y %H:%M")
-rawAct <- fitact(times$clock)
-avgAct <- fitact(times$solar)
-plot(rawAct)
-plot(avgAct, add=TRUE, data="n", tline=list(col="cyan"))
-
+#' subdat <- subset(BCItime, species=="ocelot")
+#' times <- solartime(subdat$date, 9.156335, -79.847682, -5, "%d/%m/%Y %H:%M")
+#' rawAct <- fitact(times$clock)
+#' avgAct <- fitact(times$solar)
+#' plot(rawAct)
+#' plot(avgAct, add=TRUE, data="n", tline=list(col="cyan"))
+#' @export
 solartime <- function(dat, lat, long, tz, format="%Y-%m-%d %H:%M:%S"){
   if(class(dat)[1]=="character"){
     dat <- strptime(dat, format, "UTC")
@@ -962,49 +949,51 @@ solartime <- function(dat, lat, long, tz, format="%Y-%m-%d %H:%M:%S"){
          unlist(lapply(posdat, length)) != 1))
     stop("lat, long and tz must all be numeric scalars or vectors the same length as dat")
 
-  suntimes <- wrap(daylength(lat, long, JD(dat), tz)[,-3] * pi/12)
+  suntimes <- wrap(insol::daylength(lat, long, insol::JD(dat), tz)[,-3] * pi/12)
   tm <- gettime(dat)
   list(input=dat, clock=tm, solar=transtime(tm, suntimes))
 }
 
 
-#transtime
-#Transforms clock times to times adjusted relative to anchor time(s)
-
-#ARGUMENTS
-# dat: a vector of radian event clock times
-# anchor: a vector or matrix of radian anchor times on event days;
-#         if double anchored, two-column matrix required.
-# mean.anchor: scalar (for type=="single") or two-element vector of
-#              anchor points on transformed scale; if NULL, defaults to
-#              [pi/2, pi3/2] when type=="equinoctial", otherwise anchor mean(s).
-# type: transformation to use:
-#   average: anchored to average anchor times
-#   equinoctial: anchored to pi/2 and pi*3/2
-#   single: anchored to average anchor time
-
-#VALUE
-#A vector of transformed radian times.
-
+#' Transforms clock time to solar times.
+#'
+#' Transforms time expressed relative to either the time of a single solar event (anchor times - Nouvellet et al. 2012), or two solar events (such as sun rise and sun set - Vazquez et al. in press).
+#'
+#' @details If double anchoring is requested (i.e. \code{type} is equinoctial
+#' or average), the \code{anchor} argument requires a two-column matrix,
+#' otherwise a vector. The argument \code{mnanchor} can usually be left at
+#' its default \code{NULL} value. In this case, the mean anchors are set to
+#' \code{c(pi/2, pi*3/2)} when \code{type}=="equinoctial", otherwise the
+#' \code{anchor} mean(s).
+#'
+#' Although the anchors for transformation are usually likely to be solar
+#' events (e.g. sun rise and/or sunset), they could be other celestial
+#' (e.g. lunar) or human-related (e.g. timing of artificial lighting) events.
+#' @param dat A vector of radian event clock times.
+#' @param anchor A vector or matrix matched with \code{dat} containing radian anchor times on the day of each event (see Details).
+#' @param mnanchor A scalar or two-element vector of numeric radian mean anchor times (see Details).
+#' @param type The type of transformation to use (see Details).
+#' @return  A vector of radian transformed times.
+#' @references Vazquez, C., Rowcliffe, J.M., Spoelstra, K. and Jansen, P.A. in press. Comparing diel activity patterns of wildlife across latitudes and seasons: time transformation using day length. Methods in Ecology and Evolution.
+#' @references Nouvellet, P., Rasmussen, G.S.A., Macdonald, D.W. and Courchamp, F. 2012. Noisy clocks and silent sunrises: measurement methods of daily activity pattern. Journal of Zoology 286: 179-184.
 #' @examples
 #' data(BCItime)
-
-subdat <- subset(BCItime, species=="ocelot")
-jdate <- JD(strptime(subdat$date, "%d/%m/%Y %H:%M", "UTC"))
-suntimes <- pi/12 * daylength(9.156335, -79.847682, jdate, -5)[, -3]
-rawtimes <- subdat$time*2*pi
-avgtimes <- transtime(rawtimes, suntimes)
-eqntimes <- transtime(rawtimes, suntimes, type="equinoctial")
-sngtimes <- transtime(rawtimes, suntimes[,1], type="single")
-rawAct <- fitact(rawtimes)
-avgAct <- fitact(avgtimes)
-eqnAct <- fitact(eqntimes)
-sngAct <- fitact(sngtimes)
-plot(rawAct)
-plot(avgAct, add=TRUE, data="n", tline=list(col="magenta"))
-plot(eqnAct, add=TRUE, data="n", tline=list(col="orange"))
-plot(sngAct, add=TRUE, data="n", tline=list(col="cyan"))
-
+#' subdat <- subset(BCItime, species=="ocelot")
+#' jdate <- insol::JD(strptime(subdat$date, "%d/%m/%Y %H:%M", "UTC"))
+#' suntimes <- pi/12 * insol::daylength(9.156335, -79.847682, jdate, -5)[, -3]
+#' rawtimes <- subdat$time*2*pi
+#' avgtimes <- transtime(rawtimes, suntimes)
+#' eqntimes <- transtime(rawtimes, suntimes, type="equinoctial")
+#' sngtimes <- transtime(rawtimes, suntimes[,1], type="single")
+#' rawAct <- fitact(rawtimes)
+#' avgAct <- fitact(avgtimes)
+#' eqnAct <- fitact(eqntimes)
+#' sngAct <- fitact(sngtimes)
+#' plot(rawAct)
+#' plot(avgAct, add=TRUE, data="n", tline=list(col="magenta"))
+#' plot(eqnAct, add=TRUE, data="n", tline=list(col="orange"))
+#' plot(sngAct, add=TRUE, data="n", tline=list(col="cyan"))
+#' @export
 transtime <- function(dat, anchor, mnanchor=NULL, type=c("average", "equinoctial", "single")){
   if(!all(dat>=0 & dat<=2*pi, na.rm=TRUE)) warning("some dat values are <0 or >2*pi, expecting radian data")
   if(max(dat, na.rm=TRUE)<1) warning("max(dat) < 1, expecting radian data")
