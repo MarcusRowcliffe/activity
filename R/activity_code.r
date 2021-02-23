@@ -289,9 +289,9 @@ density2 <- function(x, reps=999, ...){
 #'  \code{none}: no bootstrapping.
 #'  \code{data}: sample from the data;
 #'  \code{model}: sample from the fitted probability density distribution;
-#' Confidence interval coverage seems to be better at large sample size
-#' (greater than around 100) using \code{"model"}, but better at small sample size
-#' when using \code{"data"}.
+#' In principle it is preferable to sample from the data, but sampling from
+#' the model can sometimes provide more sensible confidence intervals when
+#' the number of observations is very small.
 #' @param dat A numeric vector of radian time-of-day data.
 #' @param wt A numeric vector of weights for each \code{dat} value.
 #' @param reps Number of boostrap iterations to perform. Ignored if sample=="none".
