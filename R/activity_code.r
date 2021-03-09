@@ -286,15 +286,17 @@ density2 <- function(x, reps=999, ...){
 #' accuracy of activity level estimates.
 #'
 #' The alternative bootstrapping methods defined by \code{sample} are:
-#'  \code{none}: no bootstrapping.
-#'  \code{data}: sample from the data;
-#'  \code{model}: sample from the fitted probability density distribution;
-#' In principle it is preferable to sample from the data, but sampling from
-#' the model can sometimes provide more sensible confidence intervals when
+#' \itemize{
+#'  \item{\code{"none"}: no bootstrapping}
+#'  \item{\code{"data"}: sample from the data}
+#'  \item{\code{"model"}: sample from the fitted probability density distribution}
+#'  }
+#' It's generally better to sample from the data, but sampling from
+#' the fitted distribution can sometimes provide more sensible confidence intervals when
 #' the number of observations is very small.
 #' @param dat A numeric vector of radian time-of-day data.
 #' @param wt A numeric vector of weights for each \code{dat} value.
-#' @param reps Number of boostrap iterations to perform. Ignored if sample=="none".
+#' @param reps Number of bootstrap iterations to perform. Ignored if \code{sample=="none"}.
 #' @param bw Numeric value for kernel bandwidth. If NULL, calculated internally.
 #' @param adj Numeric bandwidth adjustment multiplier.
 #' @param sample Character string defining sampling method for bootstrapping errors (see details).
