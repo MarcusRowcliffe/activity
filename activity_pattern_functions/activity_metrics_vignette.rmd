@@ -1,0 +1,70 @@
+---
+title: 'Activity metrics: examples for use'
+author: "Carmen Vazquez"
+date: "1/27/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE, warning=FALSE, echo=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+install.packages("Activity")
+install.packages("insol")
+```
+
+General introduction in text. 
+
+
+```{r setup2, warning=FALSE}
+library(activity)
+library(insol)
+
+source(activity_metrics_functions20201203.R)
+```
+
+We will use the BCI data, and for the purpose of this example, on the coati 
+```{r setup2, warning=FALSE}
+data(BCItime)
+coati <- subset(BCItime, species=="coati")$time
+```
+
+#Fit with confidence limits (limited reps to speed up)
+time.rad<-2*pi*agouti$time
+mod <- fitact(time.rad, sample="data", reps=10)
+plot(mod)
+
+
+## Activity type
+
+We provide a function to classify activity into day, night or the crepuscule that takes latitude, longitude and the date of each observation into account, easily accounting for shifts in day length. 
+
+The function ActType performs a Chi square test to determine the uniformity of the distribution of the observations. In the case that the pattern is not uniform, we follow Gomez et al. 2005 to classify the animals as nocturnal, diurnal or crepsuscular. If the pattern is uniform, we consider the species cathermeral. Nocturnal species present more than 90% Observations during the night; mostly nocturnal species present 70-90% of all observations during the night; diurnal species have fewer than 10% of observations during the night; mostly diurnal have fewer than than 10-30% Observations during the night; crepuscular species have 50% of all observations recorded during twilight and all other species are considered cathermeral. 
+
+In order to do so, it requires a datetime object as input, as well as the latitude, longitude, timezone of observations. In order to calculate the number of observations that take place during twilight, the function defaults to a definition of twilight in which the geometric centre of the sun is 18 degrees below the surface (astronomical twilight). However, the parameter "creps" can be modified to suit the study's definition of twilight. 
+
+```{r ActType}
+time.clock <- agouti$time*24 
+datetime <- as.POSIXct(BCItime$date, format = "%d/%m/%Y %H:%M")
+day      <- format(datetime, "%d")
+month    <-format(datetime, "%m")
+ActType(datetime=datetime, lat=9.15, long=-80, tmz=-5, creps=18)
+```
+
+If interested in the number of visitations during each period of time, the ActClass function returns such a table, 
+
+```{r ActClass}
+ActClass(datetime=datetime, lat=9.15, long=-80, tmz=-5)
+```
+
+
+where "Time of day" indicates the part of the day in which an observation was made, "n obs" is the total number of observations recorded during that period and "obs.pct" is the percentage of observations made during that period.
+
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
