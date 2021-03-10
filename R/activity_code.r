@@ -59,8 +59,8 @@ NULL
 #' Additionally if errors bootstrapped:
 #'  Column 3: PDF standard error.
 #'  Column 4: PDF lower 95\% confidence limit. Column 5: PDF upper 95\% confidence limit.
-#' @slot bpdf Object of class \code{"matrix"} holding bootstrap realisations of circular kernel PDF values (time points in the rows as in pdf, replicates in the columns).
-#' @slot act Object of class \code{"numeric"} giving activity level estimate and, if errors boostrapped, standard error and 95 percent confidence limits.
+#'  Columns 5-number of replicates: bootstrapped PDF outcomes
+#' @slot act Object of class \code{"numeric"} giving activity level estimate and, if errors bootstrapped, standard error and 95 percent confidence limits.
 #' @export
 setClass("actmod",
          representation(data="numeric", wt="numeric", bw="numeric", adj="numeric",
@@ -370,7 +370,7 @@ fitact <- function(dat, wt=NULL, reps=999, bw=NULL, adj=1, sample=c("none","data
   }
 
   if(sample=="none")
-    sepdf <- lclpdf <- uclpdf <- seact <- lclact <- uclact <- pdfs <- numeric(0) else{
+    sepdf <- lclpdf <- uclpdf <- seact <- lclact <- uclact <- numeric(0) else{
       if(sample=="model")
         samp <- matrix(redf(reps*length(dat), data.frame(x=x,y=pdf)), ncol=reps) else
           samp <- matrix(sample(dat, reps*length(dat), replace=TRUE, prob=wt), ncol=reps)
@@ -402,9 +402,9 @@ fitact <- function(dat, wt=NULL, reps=999, bw=NULL, adj=1, sample=c("none","data
     dat <- dat+ifelse(dat<0, 2*pi, 0)
     x <- x+ifelse(x<0, 2*pi, 0)
   }
-  pdftab <- cbind(x=x, y=pdf, se=sepdf, lcl=lclpdf, ucl=uclpdf)[order(x), ]
+  pdftab <- cbind(x=x, y=pdf, se=sepdf, lcl=lclpdf, ucl=uclpdf, pdfs)[order(x), ]
 
-  methods::new("actmod", data=dat, wt=wt, bw=bw, adj=adj, pdf=pdftab, bpdf=pdfs,
+  methods::new("actmod", data=dat, wt=wt, bw=bw, adj=adj, pdf=pdftab,
       act=c(act=act, se=seact, lcl=lclact, ucl=uclact))
 }
 
