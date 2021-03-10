@@ -59,7 +59,7 @@ NULL
 #' Additionally if errors bootstrapped:
 #'  Column 3: PDF standard error.
 #'  Column 4: PDF lower 95\% confidence limit. Column 5: PDF upper 95\% confidence limit.
-#'  @slot bpdf Object of class \code{"matrix"} holding bootstrap realisations of circular kernel PDF values (time points in the rows as in pdf, replicates in the columns).
+#' @slot bpdf Object of class \code{"matrix"} holding bootstrap realisations of circular kernel PDF values (time points in the rows as in pdf, replicates in the columns).
 #' @slot act Object of class \code{"numeric"} giving activity level estimate and, if errors boostrapped, standard error and 95 percent confidence limits.
 #' @export
 setClass("actmod",
