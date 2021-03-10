@@ -370,7 +370,7 @@ fitact <- function(dat, wt=NULL, reps=999, bw=NULL, adj=1, sample=c("none","data
   }
 
   if(sample=="none")
-    sepdf <- lclpdf <- uclpdf <- seact <- lclact <- uclact <- numeric(0) else{
+    sepdf <- lclpdf <- uclpdf <- seact <- lclact <- uclact <- pdfs <- numeric(0) else{
       if(sample=="model")
         samp <- matrix(redf(reps*length(dat), data.frame(x=x,y=pdf)), ncol=reps) else
           samp <- matrix(sample(dat, reps*length(dat), replace=TRUE, prob=wt), ncol=reps)
@@ -404,7 +404,7 @@ fitact <- function(dat, wt=NULL, reps=999, bw=NULL, adj=1, sample=c("none","data
   }
   pdftab <- cbind(x=x, y=pdf, se=sepdf, lcl=lclpdf, ucl=uclpdf)[order(x), ]
 
-  methods::new("actmod", data=dat, wt=wt, bw=bw, adj=adj, pdf=pdftab,
+  methods::new("actmod", data=dat, wt=wt, bw=bw, adj=adj, pdf=pdftab, bpdf=pdfs,
       act=c(act=act, se=seact, lcl=lclact, ucl=uclact))
 }
 
