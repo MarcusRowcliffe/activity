@@ -58,8 +58,8 @@ NULL
 #'  Column 2: Corresponding circular kernel PDF values.
 #' Additionally if errors bootstrapped:
 #'  Column 3: PDF standard error.
-#'  Column 4: PDF lower 95\% confidence limit. Column 5: PDF upper 95\% confidence limit.
-#'  Columns 5-number of replicates: bootstrapped PDF outcomes
+#'  Column 4 and 5: PDF lower and upper 95% confidence limits (labeled with numbers).
+#'  Columns 6 to number of replicates: bootstrapped PDF outcomes
 #' @slot act Object of class \code{"numeric"} giving activity level estimate and, if errors bootstrapped, standard error and 95 percent confidence limits.
 #' @export
 setClass("actmod",
@@ -370,7 +370,7 @@ fitact <- function(dat, wt=NULL, reps=999, bw=NULL, adj=1, sample=c("none","data
   }
 
   if(sample=="none")
-    sepdf <- lclpdf <- uclpdf <- seact <- lclact <- uclact <- numeric(0) else{
+    sepdf <- lclpdf <- uclpdf <- seact <- lclact <- uclact <- pdfs <- numeric(0) else{
       if(sample=="model")
         samp <- matrix(redf(reps*length(dat), data.frame(x=x,y=pdf)), ncol=reps) else
           samp <- matrix(sample(dat, reps*length(dat), replace=TRUE, prob=wt), ncol=reps)
@@ -386,7 +386,7 @@ fitact <- function(dat, wt=NULL, reps=999, bw=NULL, adj=1, sample=c("none","data
                                      reps=NULL)$y) else
               pdfs <- apply(samp, 2, function(dat) density2(dat, from=bounds[1], to=bounds[2], weights=wt,
                           adjust=adj, bw=if(is.null(bw)) "nrd0" else bw, reps=NULL)$y)
-
+    dimnames(pdfs)[[2]] <- 1:ncol(pdfs)
     sepdf <- apply(pdfs,1,stats::sd)
     lclpdf <- apply(pdfs,1,stats::quantile,probs=0.025)
     uclpdf <- apply(pdfs,1,stats::quantile,probs=0.975)
