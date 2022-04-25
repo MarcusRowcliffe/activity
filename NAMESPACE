@@ -1,6 +1,8 @@
 import(methods)
 S3method(plot,actmod)
 S3method(plot,lincircmod)
+export(dvonm)
+export(trigmolen)
 export(bwcalc)
 export(cmean)
 export(compareAct)
