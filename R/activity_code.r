@@ -79,6 +79,48 @@ setClass("actmod",
 setClass("lincircmod", representation(data="data.frame", fit="data.frame"))
 
 
+#' von Mises density function
+#'
+#' Probability density function for the von Mises circular distribution.
+#'
+#' If more than one of x, mu and k have length > 1, values are recycled.
+#'
+#' @param x numeric angles (assumed to be radian).
+#' @param mu numeric, the mean direction of the distribution.
+#' @param k non-negative numeric, the concentration parameter distribution (kappa).
+#' @param log if TRUE log probabilities are returned.
+#' @return Probability density value(s).
+#' @examples
+#' #Densities for a distribution with mu=pi and k=1 across a sequence covering a full circle
+#' #dvonm(seq(0, 2*pi, len=10), pi, 1)
+#' @export
+dvonm <- function(x, mu, k, log=FALSE){
+  if(any(k<0)) stop("The concentration parameter k must be non-negative")
+  x <- x %% (2*pi)
+  mu <- mu %% (2*pi)
+  res <- (exp(cos(x-mu) - 1))^k / (2 * pi * besselI(k, 0, TRUE))
+  if(log) res <- log(res)
+  res
+}
+
+#' title trigonometric moment length
+#'
+#' Calculate trigonometric moment length
+#'
+#' details TBC
+#'
+#' @param x a vector of circular values, assumed to be radian.
+#' @param p order of trigonometric moment to be computed.
+#' @return Trigonometric moment length of the input.
+#' @export
+trigmolen <- function(x, p){
+  n <- length(x)
+  cmean <- atan2(sum(sin(x)), sum(cos(x)))
+  sin.p <- sum(sin(p * (x - cmean)))/n
+  cos.p <- sum(cos(p * (x - cmean)))/n
+  sqrt(sin.p^2 + cos.p^2)
+}
+
 #' Index of overlap between circular distributions.
 #'
 #' Calculates Dhat4 overlap index (see reference) between two kernel distributions.
@@ -121,8 +163,8 @@ bwcalc <- function(dat,K=3)
 {  if(!all(dat>=0 & dat<=2*pi)) warning("some dat values are <0 or >2*pi, expecting radian data")
    if(max(dat)<1) warning("max(dat) < 1, expecting radian data")
 
-   minfunc <- function(kap,k,dat)
-   {	trigmom <- circular::trigonometric.moment(circular::circular(dat),k,center=T)$rho
+   minfunc <- function(kap,k,dat){
+     trigmom <- trigmolen(dat, k)
      (besselI(kap,k)/besselI(kap,0) - trigmom)^2
    }
    kapk.calc <- function(k,dat)
@@ -163,7 +205,7 @@ dvmkern <- function(x,dat,wt=NULL,bw=NULL,adj=1){
   dif <- abs(dx[,2]-dx[,1])
   i <- dif>pi
   dif[i] <- 2*pi-dif[i]
-  prob <- circular::dvonmises(circular::circular(dif),circular::circular(0),bw*adj)
+  prob <- dvonm(dif, 0, bw*adj)
   apply(matrix(prob*wt, nrow=length(dat)),2,sum)/sum(wt)
 }
 
@@ -573,7 +615,7 @@ lincircKern <- function(x,circdat,lindat)
   dif <- abs(dx[,2]-dx[,1])
   i <- dif>pi
   dif[i] <- 2*pi-dif[i]
-  prob <- matrix(circular::dvonmises(circular::circular(dif),circular::circular(0),bw), nrow=length(circdat))
+  prob <- matrix(dvonm(dif, 0, bw), nrow=length(circdat))
   apply(prob,2,function(z) mean(z*lindat)/mean(z))
 }
 
