@@ -91,8 +91,7 @@ setClass("lincircmod", representation(data="data.frame", fit="data.frame"))
 #' @param log if TRUE log probabilities are returned.
 #' @return Probability density value(s).
 #' @examples
-#' #Densities for a distribution with mu=pi and k=1 across a sequence covering a full circle
-#' #dvonm(seq(0, 2*pi, len=10), pi, 1)
+#' dvonm(seq(0, 2*pi, len=10), pi, 1)
 #' @export
 dvonm <- function(x, mu, k, log=FALSE){
   if(any(k<0)) stop("The concentration parameter k must be non-negative")
@@ -106,8 +105,6 @@ dvonm <- function(x, mu, k, log=FALSE){
 #' title trigonometric moment length
 #'
 #' Calculate trigonometric moment length
-#'
-#' details TBC
 #'
 #' @param x a vector of circular values, assumed to be radian.
 #' @param p order of trigonometric moment to be computed.

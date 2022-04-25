@@ -15,7 +15,6 @@ Encoding: UTF-8
 Depends:
     methods
 Imports:
-    circular,
     pbapply,
     insol
 LazyData: true
