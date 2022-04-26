@@ -182,7 +182,7 @@ bwcalc <- function(dat,K=3)
 #' @param bw Numeric value for kernel bandwidth.
 #' @param adj Numeric kernel bandwidth multiplier.
 #' @return Numeric vector of probability densities evaluated at \code{x}.
-#' @seealso \code{\link{density.circular}, \link{bwcalc}}
+#' @seealso \code{\link{bwcalc}}
 #' @examples
 #' #Example with made up input
 #' tt <- runif(100,0,2*pi)
