@@ -952,6 +952,71 @@ cmean <- function(x, ...){
   wrap(atan(Y/X) + ifelse(X<0,pi,0))
 }
 
+#' Calculates solar event times
+#'
+#' Calculates approximate times of sunrise and sunset and day lengths
+#' for given dates at given locations.
+#'
+#' @details Function adapted from https://www.r-bloggers.com/2014/09/seeing-the-daylight-with-r/
+#' @param date character, POSIX or Date format date/time value(s)
+#' @param lat latitude in decimal degrees
+#' @param lon longitude in decimal degrees (negative is West)
+#' @param offset the time offset in hours relative to UTC (GMT) for results
+#' @param ... arguments passed to as.POSIXlt
+#' @references Teets, D.A. 2003. Predicting sunrise and sunset times. The College Mathematics Journal 34(4):317-321.
+#' @examples
+#' data(BCItime)
+#' dat <- subset(BCItime, species=="ocelot")$date
+#' get_suntimes(dat, 9.156335, -79.847682, -5)
+#' @export
+get_suntimes <- function(date, lat, lon, offset, ...,
+                         tryFormats=c("%Y-%m-%d %H:%M:%OS",
+                                      "%Y/%m/%d %H:%M:%OS",
+                                      "%Y:%m:%d %H:%M:%OS",
+                                      "%Y-%m-%d %H:%M",
+                                      "%Y/%m/%d %H:%M",
+                                      "%Y:%m:%d %H:%M",
+                                      "%Y-%m-%d",
+                                      "%Y/%m/%d",
+                                      "%Y:%m:%d")){
+  nlat <- length(lat)
+  nlon <- length(lon)
+  ndat <- length(date)
+  if((nlat>1 & nlat!=ndat) | (nlon>1 & nlon!=ndat))
+    stop("lat and lon must have length 1 or the same length as date")
+  # Day of year
+  d <- as.POSIXlt(date, tryFormats=tryFormats, ...)$yday + 1
+  # Radius of the earth (km)
+  R <- 6378
+  # Radians between the xy-plane and the ecliptic plane
+  epsilon <- 23.45 * pi / 180
+  # Convert observer's latitude to radians
+  L <- lat * pi / 180
+  # Calculate offset of sunrise based on longitude (min)
+  # If lon is negative, then the mod represents degrees West of
+  # a standard time meridian, so timing of sunrise and sunset should
+  # be made later.
+  lon_h <- 24 * lon / 360
+  # The earth's mean distance from the sun (km)
+  r <- 149598000
+  theta <- 2 * pi / 365.25 * (d - 80)
+  zs <- r * sin(theta) * sin(epsilon)
+  rp <- sqrt(r^2 - zs^2)
+  acos_term <- (R-zs * sin(L)) / (rp * cos(L))
+  t0 <- suppressWarnings(1440 / (2*pi) * acos(acos_term))
+  # A kludge adjustment for the radius of the sun
+  that <- t0+5
+  # Adjust "noon" for the fact that the earth's orbit is not circular:
+  n <- 720 - 10 * sin(4 * pi * (d-80) / 365.25) + 8 * sin(2*pi*d / 365.25)
+  ## now sunrise and sunset are:
+  sunrise <- (n - that) / 60 - lon_h + offset
+  sunset <- (n + that) / 60 - lon_h + offset
+  daylength <- ifelse(acos_term < -1, 24,
+                      ifelse(acos_term > 1, 0,
+                             sunset-sunrise))
+  data.frame(sunrise=sunrise, sunset=sunset, daylength=daylength)
+}
+
 
 #' Transforms clock time to solar time anchored to sun rise and sunset times for a given location.
 #'
