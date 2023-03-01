@@ -468,7 +468,7 @@ fitact <- function(dat, wt=NULL, reps=999, bw=NULL, adj=1, sample=c("none","data
 #' compareCkern(fPaca,fRat,reps=10)
 #' @export
 compareCkern <- function(fit1, fit2, reps=999){
-  if(class(fit1)!="actmod" | class(fit1)!="actmod")
+  if(!inherits(fit1, "actmod") | !inherits(fit2, "actmod"))
     stop("Input must be fitted activity models (class actmod)")
   bnd <- range(fit1@pdf[,1])
   if(!all(bnd==range(fit2@pdf[,1])))
@@ -519,7 +519,7 @@ compareCkern <- function(fit1, fit2, reps=999){
 #' compareAct(list(fPaca,fRat))
 #' @export
 compareAct <- function(fits)
-{ if(class(fits)!="list" | !all(unlist(lapply(fits,class))=="actmod"))
+{ if(!inherits(fits, "list") | !all(unlist(lapply(fits,inherits,"actmod"))))
     stop("fits must be a list of actmod objects")
   if(min(unlist(lapply(fits, function(x) length(x@act))))==1)
     stop("all input model fits must be boostrapped")
@@ -555,7 +555,7 @@ compareAct <- function(fits)
 #' compareTimes(fPaca, c(5.5,6,0.5,1))
 #' @export
 compareTimes <- function(fit, times)
-{ if(class(fit)!="actmod") stop("fit input must be an actmod object")
+{ if(!inherits(fit, "actmod")) stop("fit input must be an actmod object")
   if(!all(times>=0 & times<=2*pi)) stop("some times are <0 or >2*pi, expecting radian data")
 
   len <- length(times)
@@ -881,8 +881,9 @@ plot.lincircmod <- function(x, CircScale=2*pi, tlim=c(0,1), fcol="black", flty=1
 #' Accepts data of class POSIXct, POSIXlt or character and returns the  time of day element as numeric (any date element is ignored).
 #'
 #' @param x A vector of POSIXct, POSIXlt or character format time data to convert.
-#' @param format A character string defining the time/date format if \code{x} is character format, see \code{strptime} for details. Ignored if \code{x} is not character.
 #' @param scale The scale on which to return times (see Value for options).
+#' @param ... arguments passed to as.POSIXlt
+#' @param tryFormats formats to try when converting date from character, passed to as.POSIXlt
 #' @return A vector of numeric times of day in units defined by the \code{scale} argument:
 #' radian, on the range [0, 2*pi];
 #' hours, on the range [0, 24];
@@ -890,25 +891,30 @@ plot.lincircmod <- function(x, CircScale=2*pi, tlim=c(0,1), fcol="black", flty=1
 #' @seealso \code{\link{strptime}}
 #' @examples
 #' data(BCItime)
-#' rtime <- gettime(BCItime$date, "%d/%m/%Y %H:%M")
-#' htime <- gettime(BCItime$date, "%d/%m/%Y %H:%M", "hour")
-#' ptime <- gettime(BCItime$date, "%d/%m/%Y %H:%M", "proportion")
+#' rtime <- gettime(BCItime$date)
+#' htime <- gettime(BCItime$date, "hour")
+#' ptime <- gettime(BCItime$date, "proportion")
 #' summary(rtime)
 #' summary(htime)
 #' summary(ptime)
 #' @export
-gettime <- function(x, format="%Y-%m-%d %H:%M:%S", scale=c("radian","hour","proportion")){
-  if(class(x)[1]=="character") x <- strptime(x, format, "UTC") else
-    if(class(x)[1]=="POSIXct") x <- as.POSIXlt(x) else
-      if(class(x)[1]!="POSIXlt") stop("x must be character or POSIXt class")
-
-    scale <- match.arg(scale)
-
-    res <- x$hour + x$min/60 + x$sec/3600
-    if(scale=="radian") res <- res*pi/12
-    if(scale=="proportion") res <- res/24
-    if(all(res==0, na.rm=T)) warning("All times are 0: may be just strptime default?")
-    res
+gettime <- function(x, scale=c("radian","hour","proportion"), ...,
+                    tryFormats=c("%Y-%m-%d %H:%M:%OS",
+                                 "%Y/%m/%d %H:%M:%OS",
+                                 "%Y:%m:%d %H:%M:%OS",
+                                 "%Y-%m-%d %H:%M",
+                                 "%Y/%m/%d %H:%M",
+                                 "%Y:%m:%d %H:%M",
+                                 "%Y-%m-%d",
+                                 "%Y/%m/%d",
+                                 "%Y:%m:%d")){
+  scale <- match.arg(scale)
+  x <- as.POSIXlt(x, tryFormats=tryFormats, ...)
+  res <- x$hour + x$min/60 + x$sec/3600
+  if(scale=="radian") res <- res*pi/12
+  if(scale=="proportion") res <- res/24
+  if(all(res==0, na.rm=T)) warning("All times are 0: may be just strptime default?")
+  res
 }
 
 
@@ -959,10 +965,10 @@ cmean <- function(x, ...){
 #'
 #' @details Function adapted from https://www.r-bloggers.com/2014/09/seeing-the-daylight-with-r/
 #' @param date character, POSIX or Date format date/time value(s)
-#' @param lat latitude in decimal degrees
-#' @param lon longitude in decimal degrees (negative is West)
+#' @param lat,lon latitude and longitude in decimal degrees
 #' @param offset the time offset in hours relative to UTC (GMT) for results
 #' @param ... arguments passed to as.POSIXlt
+#' @param tryFormats formats to try when converting date from character, passed to as.POSIXlt
 #' @return A dataframe with columns sunrise and sunset (given in the timezone defined by offset) and daylength, all expressed in hours.
 #' @references Teets, D.A. 2003. Predicting sunrise and sunset times. The College Mathematics Journal 34(4):317-321.
 #' @examples
@@ -1025,9 +1031,10 @@ get_suntimes <- function(date, lat, lon, offset, ...,
 #'
 #' @details Time zone \code{tz} should be expressed in numeric hours relative to UTC (GMT).
 #' @param dat A vector of character, POSIXct or POSIXlt date-time values.
-#' @param lat,long Single numeric values or numeric vectors the same length as \code{dat} giving site latitude and longitude in decimal format.
+#' @param lat,lon Single numeric values or numeric vectors the same length as \code{dat} giving site latitude and longitude in decimal format.
 #' @param tz A single numeric value or numeric vector same length as \code{dat} giving time zone (see Details).
-#' @param format A character string defining the time-date format if \code{dat} is character format, see \code{strptime} for details. Ignored if \code{x} is not character.
+#' @param ... arguments passed to as.POSIXlt
+#' @param tryFormats formats to try when converting date from character, passed to as.POSIXlt
 #' @return A list with elements:
 #' @return \code{input}: event input dates-times in POSIXlt format.
 #' @return \code{clock}: radian clock time data.
@@ -1053,13 +1060,12 @@ solartime <- function(dat, lat, lon, tz, ...,
                                    "%Y-%m-%d",
                                    "%Y/%m/%d",
                                    "%Y:%m:%d")){
-
   dat <- as.POSIXlt(dat, tryFormats=tryFormats, ...)
   posdat <- list(lat,lon,tz)
-  if(any(unlist(lapply(posdat, class)) != "numeric") |
+  if(!all(unlist(lapply(posdat, inherits, "numeric"))) |
      any(unlist(lapply(posdat, length)) != length(dat) &
          unlist(lapply(posdat, length)) != 1))
-    stop("lat, lon and tz must all be numeric scalars or vectors the same length as dat")
+    stop("lat, lon and tz must all be numeric scalars, or vectors the same length as dat")
 
   suntimes <- wrap(get_suntimes(dat, lat, lon, tz)[,-3] * pi/12)
   tm <- gettime(dat)
