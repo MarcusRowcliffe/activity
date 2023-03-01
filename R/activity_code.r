@@ -963,6 +963,7 @@ cmean <- function(x, ...){
 #' @param lon longitude in decimal degrees (negative is West)
 #' @param offset the time offset in hours relative to UTC (GMT) for results
 #' @param ... arguments passed to as.POSIXlt
+#' @return A dataframe with columns sunrise and sunset (given in the timezone defined by offset) and daylength, all expressed in hours.
 #' @references Teets, D.A. 2003. Predicting sunrise and sunset times. The College Mathematics Journal 34(4):317-321.
 #' @examples
 #' data(BCItime)
@@ -1036,26 +1037,31 @@ get_suntimes <- function(date, lat, lon, offset, ...,
 #' @examples
 #' data(BCItime)
 #' subdat <- subset(BCItime, species=="ocelot")
-#' times <- solartime(subdat$date, 9.156335, -79.847682, -5, "%d/%m/%Y %H:%M")
+#' times <- solartime(subdat$date, 9.156335, -79.847682, -5)
 #' rawAct <- fitact(times$clock)
 #' avgAct <- fitact(times$solar)
 #' plot(rawAct)
 #' plot(avgAct, add=TRUE, data="n", tline=list(col="cyan"))
 #' @export
-solartime <- function(dat, lat, long, tz, format="%Y-%m-%d %H:%M:%S"){
-  if(class(dat)[1]=="character"){
-    dat <- strptime(dat, format, "UTC")
-    if(any(is.na(dat))) stop("Date conversion was at least partly unsuccessful - check formatting")
-  } else
-    if(!grepl("POSIX", class(dat)[1]))
-      stop("dat must be character or POSIXt class")
-  posdat <- list(lat,long,tz)
+solartime <- function(dat, lat, lon, tz, ...,
+                      tryFormats=c("%Y-%m-%d %H:%M:%OS",
+                                   "%Y/%m/%d %H:%M:%OS",
+                                   "%Y:%m:%d %H:%M:%OS",
+                                   "%Y-%m-%d %H:%M",
+                                   "%Y/%m/%d %H:%M",
+                                   "%Y:%m:%d %H:%M",
+                                   "%Y-%m-%d",
+                                   "%Y/%m/%d",
+                                   "%Y:%m:%d")){
+
+  dat <- as.POSIXlt(dat, tryFormats=tryFormats, ...)
+  posdat <- list(lat,lon,tz)
   if(any(unlist(lapply(posdat, class)) != "numeric") |
      any(unlist(lapply(posdat, length)) != length(dat) &
          unlist(lapply(posdat, length)) != 1))
-    stop("lat, long and tz must all be numeric scalars or vectors the same length as dat")
+    stop("lat, lon and tz must all be numeric scalars or vectors the same length as dat")
 
-  suntimes <- wrap(insol::daylength(lat, long, insol::JD(dat), tz)[,-3] * pi/12)
+  suntimes <- wrap(get_suntimes(dat, lat, lon, tz)[,-3] * pi/12)
   tm <- gettime(dat)
   list(input=dat, clock=tm, solar=transtime(tm, suntimes))
 }
@@ -1085,8 +1091,7 @@ solartime <- function(dat, lat, long, tz, format="%Y-%m-%d %H:%M:%S"){
 #' @examples
 #' data(BCItime)
 #' subdat <- subset(BCItime, species=="ocelot")
-#' jdate <- insol::JD(strptime(subdat$date, "%d/%m/%Y %H:%M", "UTC"))
-#' suntimes <- pi/12 * insol::daylength(9.156335, -79.847682, jdate, -5)[, -3]
+#' suntimes <- pi/12 * get_suntimes(subdat$date, 9.156335, -79.847682, -5)[, -3]
 #' rawtimes <- subdat$time*2*pi
 #' avgtimes <- transtime(rawtimes, suntimes)
 #' eqntimes <- transtime(rawtimes, suntimes, type="equinoctial")
