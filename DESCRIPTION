@@ -1,7 +1,7 @@
 Package: activity
 Type: Package
 Title: Animal Activity Statistics
-Version: 1.3.2
+Version: 1.3.3
 Author: Marcus Rowcliffe
 Maintainer: Marcus Rowcliffe <marcus.rowcliffe@ioz.ac.uk>
 Description: Provides functions to express clock time data relative to 
@@ -17,4 +17,4 @@ Depends:
 Imports:
     pbapply
 LazyData: true
-RoxygenNote: 7.1.2
+RoxygenNote: 7.2.1
