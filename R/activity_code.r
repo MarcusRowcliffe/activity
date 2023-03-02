@@ -690,6 +690,7 @@ fitlincirc <- function(circdat, lindat, pCI=0.95, reps=10, res=512)
 #' @param add Logical defining whether to create a new plot (default) or add to an existing plot.
 #' @param xaxis List of plotting parameters to pass to axis command for x-axis plot (see axis for arguments).
 #' @param ... Additional arguments passed to internal plot call affecting only the plot frame and y axis. Modify x axis through xaxis.
+#' @return No return value, called to create a plot visualising an activity model.
 #' @examples
 #' data(BCItime)
 #' otm <- 2*pi*subset(BCItime, species=="ocelot")$time
@@ -845,6 +846,7 @@ plot.actmod <- function(x, xunit=c("clock","hours","radians"), yunit=c("frequenc
 #' @param tlim Numeric vector with two elements >=0 and <=1 defining the lower and upper limits at which to plot distributions; default plots the full range.
 #' @param fcol,flty,ncol,nlty Define line colour (\code{col}) and type (\code{lty}) for fitted (\code{f}) and null (\code{n}) distributions; input types as for \code{col} and \code{lty}, see \code{\link{par}}.
 #' @param ... Additional arguments passed to the inital plot construction, affecting axes and data plot symbols.
+#' @return No return value, called to create a plot visualising a linear-circular relationship.
 #' @export
 plot.lincircmod <- function(x, CircScale=2*pi, tlim=c(0,1), fcol="black", flty=1, ncol="red", nlty=2, ...){
 

@@ -41,6 +41,9 @@
 
 \item{...}{Additional arguments passed to internal plot call affecting only the plot frame and y axis. Modify x axis through xaxis.}
 }
+\value{
+No return value, called to create a plot visualising an activity model.
+}
 \description{
 Plot an activity probability distribution from a fitted \code{actmod} object.
 }

@@ -26,6 +26,9 @@
 
 \item{...}{Additional arguments passed to the inital plot construction, affecting axes and data plot symbols.}
 }
+\value{
+No return value, called to create a plot visualising a linear-circular relationship.
+}
 \description{
 Plot linear against circular data along with the fitted and null confidence limit distributions from a fitted \code{lincircmod} object.
 }
