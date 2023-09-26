@@ -3,6 +3,7 @@
 \docType{package}
 \name{activity}
 \alias{activity}
+\alias{activity-package}
 \title{Animal activity statistics}
 \description{
 Provides functions to estimate and compare activity parameters from sensor data.

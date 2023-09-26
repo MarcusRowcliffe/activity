@@ -18,9 +18,8 @@
 #' (in the range 0 to 2*pi).
 #'
 #' @references Rowcliffe, M., Kays, R., Kranstauber, B., Carbone, C., Jansen, P.A. (2014) Quantifying animal activity level using camera trap data. Methods in Ecology and Evolution.
-#' @docType package
 #' @name activity
-NULL
+"_PACKAGE"
 
 #' Animal record time of day data
 #'
